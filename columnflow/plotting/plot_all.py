@@ -154,6 +154,64 @@ def draw_errorbars(
     ax.errorbar(**defaults)
 
 
+def binom_int(num, den, confint=0.68):
+    from scipy.stats import beta
+    quant = (1 - confint)/ 2.
+    low = beta.ppf(quant, num, den - num + 1)
+    high = beta.ppf(1 - quant, num + 1, den - num)
+    return (np.nan_to_num(low), np.where(np.isnan(high), 1, high))
+
+
+def draw_efficiency(
+    ax: plt.Axes,
+    h: hist.Hist,
+    norm: float | Sequence | np.ndarray = 1.0,
+    **kwargs,
+) -> None:
+
+    # Extract histogram data
+    values = h.values()
+    bins = h.axes[0].edges
+    bin_centers = h.axes[0].centers
+    bin_width = np.diff(bins)
+
+    efficiency = np.nan_to_num(values/norm)
+    efficiency = np.where(efficiency > 1, 1, efficiency) #beware negative event weights
+    efficiency = np.where(efficiency < 0, 0, efficiency) #beware negative event weights
+
+    # getting error bars
+    band_low, band_high = binom_int(values, norm)
+    error_low = np.asarray(efficiency - band_low)
+    error_high = np.asarray(band_high - efficiency)
+    
+    # removing large errors in empty bins
+    error_low[error_low == 1] = 0
+    error_high[error_high == 1] = 0
+    
+    # stacking errors
+    errors = np.concatenate((error_low.reshape(error_low.shape[0], 1), error_high.reshape(error_high.shape[0], 1)), axis=1)
+    errors = errors.T
+    
+    ax.errorbar(x=(bins[:-1]+bins[1:])/2, y=efficiency, yerr=errors, fmt='o-', label=kwargs["label"])
+
+    ax.set_xlabel('Bin')
+    ax.set_ylabel('Counts')
+    ax.set_ylim(0, 1)
+    ax.legend()
+
+
+def draw_hist_twin(
+    ax: plt.Axes,
+    h: hist.Hist,
+    norm: float | Sequence | np.ndarray = 1.0,
+    **kwargs,
+) -> None: 
+    ax2 = ax.twinx()
+    draw_hist(ax2, h, norm, **kwargs)
+    bin_widths = h.axes[0].widths
+    ax2.set_ylabel(r"Entries / {:.2f} GeV".format(bin_widths[0]))
+
+
 def plot_all(
     plot_config: dict,
     style_config: dict,
@@ -195,7 +253,7 @@ def plot_all(
     # available plot methods mapped to their names
     plot_methods = {
         func.__name__: func
-        for func in [draw_error_bands, draw_stack, draw_hist, draw_profile, draw_errorbars]
+        for func in [draw_error_bands, draw_stack, draw_hist, draw_profile, draw_errorbars, draw_efficiency, draw_hist_twin]
     }
 
     plt.style.use(mplhep.style.CMS)
@@ -263,11 +321,7 @@ def plot_all(
         }
         rax_kwargs.update(style_config.get("rax_cfg", {}))
         rax.set(**rax_kwargs)
-
-        if "xlabel" in rax_kwargs:
-            ax.set_xlabel("")
-
-    fig.align_labels()
+        fig.align_ylabels()
 
     # legend
     if not skip_legend:
