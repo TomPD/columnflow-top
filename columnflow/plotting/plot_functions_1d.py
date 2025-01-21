@@ -24,6 +24,7 @@ from columnflow.plotting.plot_util import (
     get_position,
     get_profile_variations,
     blind_sensitive_bins,
+    join_labels,
 )
 
 hist = maybe_import("hist")
@@ -204,14 +205,10 @@ def plot_shifted_variable(
                     plot_cfg[key]["yerr"] = None
 
     # legend title setting
-    if not legend_title:
-        if len(hists) == 1:
-            # use process label as default if 1 process
-            process_inst = list(hists.keys())[0]
-            legend_title = process_inst.label
-        else:
-            # default to `Background` for multiple processes
-            legend_title = "Background"
+    if not legend_title and len(hists) == 1:
+        # use process label as default if 1 process
+        process_inst = list(hists.keys())[0]
+        legend_title = process_inst.label
 
     if not yscale:
         yscale = "log" if variable_inst.log_y else "linear"
@@ -221,7 +218,8 @@ def plot_shifted_variable(
     )
     default_style_config["rax_cfg"]["ylim"] = (0.25, 1.75)
     default_style_config["rax_cfg"]["ylabel"] = "Ratio"
-    default_style_config["legend_cfg"]["title"] = legend_title
+    if legend_title:
+        default_style_config["legend_cfg"]["title"] = legend_title
 
     style_config = law.util.merge_dicts(default_style_config, style_config, deep=True)
     if shape_norm:
@@ -281,6 +279,9 @@ def plot_cutflow(
     if not yscale:
         yscale = "linear"
 
+    # build the label from category
+    cat_label = join_labels(category_inst.label)
+
     default_style_config = {
         "ax_cfg": {
             "ylabel": "Selection efficiency" if shape_norm else "Selection yield",
@@ -291,7 +292,7 @@ def plot_cutflow(
         "legend_cfg": {
             "loc": "upper right",
         },
-        "annotate_cfg": {"text": category_inst.label},
+        "annotate_cfg": {"text": cat_label or ""},
         "cms_label_cfg": {
             "lumi": round(0.001 * config_inst.x.luminosity.get("nominal"), 2),  # /pb -> /fb
             "com": config_inst.campaign.ecm,
