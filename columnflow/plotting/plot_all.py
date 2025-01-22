@@ -214,7 +214,7 @@ def draw_hist_twin(
     h: hist.Hist,
     norm: float | Sequence | np.ndarray = 1.0,
     **kwargs,
-) -> None: 
+) -> None:
     ax2 = ax.twinx()
     draw_hist(ax2, h, norm, **kwargs)
     bin_widths = h.axes[0].widths
@@ -248,15 +248,15 @@ def plot_all(
     "cms_label_cfg": dict,
 
     :param plot_config: Dictionary that defines which plot methods will be called with which
-        key word arguments.
+    key word arguments.
     :param style_config: Dictionary that defines arguments on how to style the overall plot.
     :param skip_ratio: Optional bool parameter to not display the ratio plot.
     :param skip_legend: Optional bool parameter to not display the legend.
     :param cms_label: Optional string parameter to set the CMS label text.
     :param whitespace_fraction: Optional float parameter that defines the ratio of which
-        the plot will consist of whitespace for the legend and labels
+    the plot will consist of whitespace for the legend and labels
     :param magnitudes: Optional float parameter that defines the displayed ymin when plotting
-        with a logarithmic scale.
+    with a logarithmic scale.
     :return: tuple of plot figure and axes
     """
     # available plot methods mapped to their names
@@ -338,36 +338,13 @@ def plot_all(
     if not skip_legend:
         # resolve legend kwargs
         legend_kwargs = {
-            "ncols": 1,
+            "ncol": 1,
             "loc": "upper right",
         }
         legend_kwargs.update(style_config.get("legend_cfg", {}))
 
         # retrieve the legend handles and their labels
         handles, labels = ax.get_legend_handles_labels()
-
-        # custom argument: entries_per_column
-        n_cols = legend_kwargs.get("ncols", 1)
-        entries_per_col = legend_kwargs.pop("entries_per_column", None)
-        if callable(entries_per_col):
-            entries_per_col = entries_per_col(ax, handles, labels, n_cols)
-        if entries_per_col and n_cols > 1:
-            if isinstance(entries_per_col, (list, tuple)):
-                assert len(entries_per_col) == n_cols
-            else:
-                entries_per_col = [entries_per_col] * n_cols
-            # fill handles and labels with empty entries
-            max_entries = max(entries_per_col)
-            empty_handle = ax.plot([], label="", linestyle="None")[0]
-            for i, n in enumerate(entries_per_col):
-                for _ in range(max_entries - min(n, len(handles) - sum(entries_per_col[:i]))):
-                    handles.insert(i * max_entries + n, empty_handle)
-                    labels.insert(i * max_entries + n, "")
-
-        # custom hook to adjust handles and labels
-        update_handles_labels = legend_kwargs.pop("update_handles_labels", None)
-        if callable(update_handles_labels):
-            update_handles_labels(ax, handles, labels, n_cols)
 
         # assume all `StepPatch` objects are part of MC stack
         in_stack = [
@@ -377,13 +354,13 @@ def plot_all(
 
         # reverse order of entries that are part of the stack
         if any(in_stack):
-            def revere_entries(entries, mask):
+            def shuffle(entries, mask):
                 entries = np.array(entries, dtype=object)
                 entries[mask] = entries[mask][::-1]
                 return list(entries)
 
-            handles = revere_entries(handles, in_stack)
-            labels = revere_entries(labels, in_stack)
+            handles = shuffle(handles, in_stack)
+            labels = shuffle(labels, in_stack)
 
         # make legend using ordered handles/labels
         ax.legend(handles, labels, **legend_kwargs)
@@ -412,6 +389,6 @@ def plot_all(
         cms_label_kwargs.update(style_config.get("cms_label_cfg", {}))
         mplhep.cms.label(**cms_label_kwargs)
 
-    fig.tight_layout()
+    plt.tight_layout()
 
     return fig, axs
