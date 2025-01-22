@@ -156,7 +156,7 @@ def draw_errorbars(
 
 def binom_int(num, den, confint=0.68):
     from scipy.stats import beta
-    quant = (1 - confint)/ 2.
+    quant = (1 - confint) / 2.
     low = beta.ppf(quant, num, den - num + 1)
     high = beta.ppf(1 - quant, num + 1, den - num)
     return (np.nan_to_num(low), np.where(np.isnan(high), 1, high))
@@ -172,30 +172,39 @@ def draw_efficiency(
     # Extract histogram data
     values = h.values()
     bins = h.axes[0].edges
-    bin_centers = h.axes[0].centers
-    bin_width = np.diff(bins)
 
-    efficiency = np.nan_to_num(values/norm)
-    efficiency = np.where(efficiency > 1, 1, efficiency) #beware negative event weights
-    efficiency = np.where(efficiency < 0, 0, efficiency) #beware negative event weights
+    efficiency = np.nan_to_num(values / norm)
+    efficiency = np.where(efficiency > 1, 1, efficiency)  # beware negative event weights
+    efficiency = np.where(efficiency < 0, 0, efficiency)  # beware negative event weights
 
     # getting error bars
     band_low, band_high = binom_int(values, norm)
     error_low = np.asarray(efficiency - band_low)
     error_high = np.asarray(band_high - efficiency)
-    
+
     # removing large errors in empty bins
     error_low[error_low == 1] = 0
     error_high[error_high == 1] = 0
-    
-    # stacking errors
-    errors = np.concatenate((error_low.reshape(error_low.shape[0], 1), error_high.reshape(error_high.shape[0], 1)), axis=1)
-    errors = errors.T
-    
-    ax.errorbar(x=(bins[:-1]+bins[1:])/2, y=efficiency, yerr=errors, fmt='o-', label=kwargs["label"])
 
-    ax.set_xlabel('Bin')
-    ax.set_ylabel('Counts')
+    # stacking errors
+    errors = np.concatenate((error_low.reshape(error_low.shape[0], 1),
+                             error_high.reshape(error_high.shape[0], 1)), axis=1,
+                            )
+    errors = errors.T
+
+    defaults = {
+        "x": (bins[:-1] + bins[1:]) / 2,
+        "y": efficiency,
+        "yerr": errors,
+        "color": "k",
+        "marker": "o",
+        "elinewidth": 1,
+    }
+    defaults.update(kwargs)
+    ax.errorbar(**defaults)
+
+    ax.set_xlabel("Bin")
+    ax.set_ylabel("Counts")
     ax.set_ylim(0, 1)
     ax.legend()
 
@@ -253,7 +262,9 @@ def plot_all(
     # available plot methods mapped to their names
     plot_methods = {
         func.__name__: func
-        for func in [draw_error_bands, draw_stack, draw_hist, draw_profile, draw_errorbars, draw_efficiency, draw_hist_twin]
+        for func in [draw_error_bands, draw_stack, draw_hist, draw_profile,
+                     draw_errorbars, draw_efficiency, draw_hist_twin,
+                     ]
     }
 
     plt.style.use(mplhep.style.CMS)
